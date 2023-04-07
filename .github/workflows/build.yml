@@ -1,0 +1,64 @@
+name: Build
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    # types: [opened, synchronize, reopened] # If used and set require, merge will stuck with required but not executed when merge PR from bot e.g. release-please because it's not this 3 types. "required" can only be set as branch scope.
+jobs:
+  misc:
+    name: MiscActions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Go report card update
+        uses: creekorful/goreportcard-action@v1.0
+  sonarcloud-chk:
+    name: SonarCloudChk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Setup go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+      - run: go version
+      - name: Run Test
+        # In windows -coverprofile= not work, must be space so we use space here too as compatible for both os
+        run: |
+          go test -v -json ./... -covermode count -coverprofile coverage.out > coverage-report.json
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarQube Quality Gate check # Check the Quality Gate status.
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5 # Force to fail step after specific time.
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} # OPTIONAL
+      - name: Example show SonarQube Quality Gate Status value # `quality-gate-status` variable are `PASSED`, `WARN` or `FAILED`.
+        run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+  gosec-chk:
+    name: GosecChk
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # required for upload-sarif@v2
+    env:
+      GO111MODULE: on
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: "-no-fail -fmt sarif -out results.sarif ./..." # we let the report trigger content trigger a failure using the GitHub Security features.
+          # args: '-no-fail -fmt sonarqube -out gosec-report.json ./...' # sonar option
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
