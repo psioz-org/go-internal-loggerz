@@ -27,6 +27,9 @@ jobs:
       - name: Run Test
         # In windows -coverprofile= not work, must be space so we use space here too as compatible for both os
         run: |
+          export GOPRIVATE="bitbucket.org/truedmp/*"
+          apk update && apk --no-cache add git mercurial gcc g++
+          git config --system url."https://${{ secrets.DMP_USER }}:${{ secrets.DMP_PASS }}@bitbucket.org/".insteadOf "https://bitbucket.org/"
           go test -v -json ./... -covermode count -coverprofile coverage.out > coverage-report.json
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
