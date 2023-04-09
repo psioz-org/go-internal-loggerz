@@ -29,7 +29,7 @@ jobs:
         run: |
           export GOPRIVATE="bitbucket.org/truedmp/*"
           apk update && apk --no-cache add git mercurial gcc g++
-          git config --system url."https://${{ secrets.DMP_USER }}:${{ secrets.DMP_PASS }}@bitbucket.org/".insteadOf "https://bitbucket.org/"
+          git config --global url."https://${{ secrets.DMP_USER }}:${{ secrets.DMP_PASS }}@bitbucket.org/".insteadOf "https://bitbucket.org/"
           go test -v -json ./... -covermode count -coverprofile coverage.out > coverage-report.json
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
